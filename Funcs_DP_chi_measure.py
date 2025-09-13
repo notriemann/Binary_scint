@@ -345,6 +345,83 @@ def resampler_for_general_regions(A, delta, nu, phase, time, dyns, freq, Nres ):
     return datas_pos, datas_t, datas_dyns, datas_fd, datas_conj, tau_conj
 
 
+
+
+def resampler_dimensionless(A, delta, nu, phase, time, dyns, freq, Nres ):
+    """
+    Function that takes data (time, dynamic spec. dyns, frequency freq) and input variables A, delta
+    in order to compute the set of resampled dynamic specturm that lie in-between each turning point
+
+    By turning point this simply means about making a plot of position on the screen as a function of time,
+    which looks like a sinusoid, and then evaluating the regions around the same turning points in remapped time
+    that travel the same distance over the remapped position. This then returns
+
+    Parameters:
+       A (float): scalar value of A
+       delta (float): scalar value of delta
+       nu (array-like): true anomaly
+       phase (array-like): true anomaly + longitude of periastron
+       time (array-like): array of time
+       freq (array-like): array of frequencies
+       dyns (nxm array-like): array or matrix of the dynamic spectrum
+       delta_y (foat): scalar value of the remapped separation
+       
+    Returns:
+        datas_pos (list of arrays): remapped position on the screen
+        datas_t (list of arrays): remapped time (rescaled datas_pos by a constant so it's in time units)
+        datas_dyns (list of arrays): remapped time 
+
+    """
+    #compute the position on the screen as a function of time, phase, nu, A and delta
+    
+    #compute lenspos relative to B = 100 Mm (Megameters)
+    lenspos = Ad_projection_unitless(t = time, 
+                                        nu = nu, 
+                                        phase = phase, 
+                                        A = A, 
+                                        delta = delta).value 
+
+    
+    #get the indices of the turning points of the lenspos-time curve
+    turning_ind = find_as_des_segments( lenspos )
+    turning_ind_fill = np.concatenate(([0], turning_ind, [len(lenspos)]))
+    
+    datas_pos = []
+    datas_t = []
+    datas_dyns = []
+    
+    datas_conj = []
+    datas_kd = []
+    
+    #get the indices of the data that cross the same position on the screen around each turning point
+    for it in range(len(turning_ind)+1):
+
+        
+        res_, dyn_ = resampler2( lenspos[turning_ind_fill[ it ] : turning_ind_fill[it+1]], 
+                                   dyns[:, turning_ind_fill[ it ] : turning_ind_fill[it+1]], 
+                                   Nres)
+    
+
+            
+        #store remapped position
+        datas_pos += [ res_ * u.one]
+        
+        #store remapped dynspec
+        datas_dyns += [ dyn_ ]
+        
+        #compute the conjugate variables
+        conjspec_ = np.fft.fftshift( np.fft.fft2( dyn_ ) )
+        
+        fd_conj_ = np.fft.fftshift(np.fft.fftfreq( datas_pos[-1].size, datas_pos[-1][1]-datas_pos[-1][0] ))
+        
+        datas_conj += [ conjspec_ ]
+        datas_kd += [ fd_conj_ * u.one]
+        
+    tau_conj = np.fft.fftshift(np.fft.fftfreq( freq.size, freq[1]-freq[0] )).to(u.us)
+        
+    return datas_pos, datas_dyns, datas_kd, datas_conj, tau_conj
+
+
 def chi_pre_process( data_fd, data_cs, data_tau, 
                     tau_min = 0., tau_max = np.inf, fd_lim = 15, fd_noise = 10,
                     N_int = 201, alpha = 1., sstrength = 3, hstrength = 1, 

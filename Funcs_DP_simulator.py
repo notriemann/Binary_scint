@@ -675,11 +675,36 @@ def model_returner( dp, ds, xi, omp, vism, inc, vpa, vpd):
     #s value from scintillation
     s_val = 1. - ds / dp
     
-    #A2 value from overleaf
+    #A_M value from overleaf (22)
     A_two = Pbp / (semim * np.sqrt( np.cos(xi - omp)**2 + np.cos(inc)**2 * np.sin(xi - omp)**2  ))
-    #C value from overleaf
+    #C value from overleaf (24)
     C_val = A_two * ( - (vpa * np.sin(xi) + vpd * np.cos(xi))  + 1. /(1 - s_val) * vism )
     
     
 
     return xi.to(u.rad).value, (A_two * s_val / (1. - s_val)).to(u.s / u.km).value, C_val.to(u.m / u.m).value
+
+
+def model_returner_delta( dp, ds, xi, omp, vism, inc, vpa, vpd):
+    
+    """
+    Function to calculate the values of xi, A2 s / (1-s) and C from the overleaf given the scintillometry observables
+    """
+    
+    #orb period
+    Pbp = 2.45 * u.hour
+    #semimajor axis
+    semim = (1.410090245 * u.s * const.c).to(u.Mm)
+    #s value from scintillation
+    s_val = 1. - ds / dp
+    
+    #A_M value from overleaf (22)
+    A_two = Pbp / (semim * np.sqrt( np.cos(xi - omp)**2 + np.cos(inc)**2 * np.sin(xi - omp)**2  ))
+    #C value from overleaf (24)
+    C_val = A_two * ( - (vpa * np.sin(xi) + vpd * np.cos(xi))  + 1. /(1 - s_val) * vism )
+    
+    #computing the value of delta from (19)
+    delt_Om = xi - omp
+    delta = np.arctan( np.tan(delt_Om) * np.cos(inc) )
+
+    return xi.to(u.rad).value, (A_two * s_val / (1. - s_val)).to(u.s / u.km).value, C_val.to(u.m / u.m).value, delta.value
